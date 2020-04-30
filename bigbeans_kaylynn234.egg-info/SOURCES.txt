@@ -1,0 +1,9 @@
+README.md
+setup.py
+bigbeans/__init__.py
+bigbeans/databean.py
+bigbeans_kaylynn234.egg-info/PKG-INFO
+bigbeans_kaylynn234.egg-info/SOURCES.txt
+bigbeans_kaylynn234.egg-info/dependency_links.txt
+bigbeans_kaylynn234.egg-info/requires.txt
+bigbeans_kaylynn234.egg-info/top_level.txt

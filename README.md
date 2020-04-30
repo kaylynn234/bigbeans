@@ -1,0 +1,27 @@
+Bigbeans is a very simple PostgreSQL-based database abstraction library.
+It's mainly intended for people who don't need the more advanced functionality of SQL, but need an asynchronous solution that's easy to manage and still has the data redundancy of a standard relational database. 
+If you, like me, are an idiot, you'll probably like bigbeans a lot.
+
+You'll find that'll be the most at home in projects like chatbots, where you don't need an ORM but don't want to use JSON or write tons of SQL, but still need asynchronous solution.
+
+Example usage:
+
+    import bigbeans
+
+
+    db = await bigbeans.connect(username="postgres", password="...", host="localhost", port=5432)
+    await db["foo"].insert(bar="baz", time="now")
+    await db["foo"].insert(bar="zab", time="now")
+    await db["foo"].insert(bar="abz", time="yesternow")
+
+    await db["foo"].find(time="now")
+
+A few more technical notes:
+*   Schema is automatic for ease of use.
+*   While query parameters have been used where possible, you will still be vulnerable to SQL injection if you are an idiot.
+*   Conversion of PostgreSQL types -> Python types (and vice versa) are handled automatically where possible.
+
+I really don't have anything to sell you on for this library. Use it if you want to.
+If you hate it? That's cool too. I don't like it either.
+
+(Do note that currently the library is in a very "boy oh boy i hope it works" state)
