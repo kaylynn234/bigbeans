@@ -2,7 +2,7 @@ Bigbeans is a very simple PostgreSQL-based database abstraction library.
 It's mainly intended for people who don't need the more advanced functionality of SQL, but need an asynchronous solution that's easy to manage and still has the data redundancy of a standard relational database. 
 If you, like me, are an idiot, you'll probably like bigbeans a lot.
 
-You'll find that'll be the most at home in projects like chatbots, where you don't need an ORM but don't want to use JSON or write tons of SQL, but still need asynchronous solution.
+You'll find that'll be the most at home in projects like chatbots, where you don't need an ORM but don't want to use JSON or write tons of SQL, but still need something asynchronous.
 
 Example usage:
 
