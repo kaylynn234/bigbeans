@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="bigbeans-kaylynn234",
-    version="1.0.0rc3",
+    version="1.0.0rc4",
     author="Kaylynn Morgan",
     author_email="mkaylynn7@gmail.com",
     description="A bad database wrapper",
