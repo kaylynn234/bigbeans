@@ -268,5 +268,5 @@ class Databean():
         return new
 
     async def close(self, timeout: int = None):
-        await self._conn.close(timeout=timeout)
+        await self._pool.close(timeout=timeout)
         del self
