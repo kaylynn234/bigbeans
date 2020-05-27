@@ -82,34 +82,35 @@ class Table:
         self._bean = bean
 
     async def _ensure_beans(self, to_bean: dict) -> None:
-        results = await self._bean._conn.fetchrow("SELECT * FROM pg_tables WHERE tablename = $1", self._name)
-        if not results:  # no existing table, safe to create
-            table_details = []
-            for i, (key, value) in enumerate(to_bean.items(), start=1):
-                table_details.append(f"{key} {VALID_TYPE_MAPPING[type(value)]}")
+        async with self._bean._pool.acquire() as connection:
+            results = await connection.fetchrow("SELECT * FROM pg_tables WHERE tablename = $1", self._name)
+            if not results:  # no existing table, safe to create
+                table_details = []
+                for i, (key, value) in enumerate(to_bean.items(), start=1):
+                    table_details.append(f"{key} {VALID_TYPE_MAPPING[type(value)]}")
 
-            joined = ",\n                    ".join(table_details)
-            query = f"""
-                CREATE TABLE {self._name}(
-                    _id serial PRIMARY KEY,
-                    {joined}
-                );
-                """
+                joined = ",\n                    ".join(table_details)
+                query = f"""
+                    CREATE TABLE {self._name}(
+                        _id serial PRIMARY KEY,
+                        {joined}
+                    );
+                    """
 
-            await self._bean._conn.execute(query)
+                await connection.execute(query)
 
-        else:  # table exists, add new columns
-            table_details = []
-            for i, (key, value) in enumerate(to_bean.items(), start=1):
-                table_details.append(f"ADD COLUMN IF NOT EXISTS {key} {VALID_TYPE_MAPPING[type(value)]}")
+            else:  # table exists, add new columns
+                table_details = []
+                for i, (key, value) in enumerate(to_bean.items(), start=1):
+                    table_details.append(f"ADD COLUMN IF NOT EXISTS {key} {VALID_TYPE_MAPPING[type(value)]}")
 
-            column_query_as_string = ',\n'.join(table_details)
-            await self._bean._conn.execute(
-                f"""
-                ALTER TABLE {self._name}
-                {column_query_as_string};
-                """
-            )
+                column_query_as_string = ',\n'.join(table_details)
+                await connection.execute(
+                    f"""
+                    ALTER TABLE {self._name}
+                    {column_query_as_string};
+                    """
+                )
 
     async def _build_insert_query(self, **kwargs) -> str:
         # the insert function should make sure we're not inserting nothing, so no need to do so here
@@ -147,7 +148,8 @@ class Table:
         These have a similar interface to `dict` and are read-only.
         """
 
-        return await self._bean._conn.fetch(f"SELECT * FROM {self._name};")
+        async with self._bean._pool.acquire() as connection:
+            return await connection.fetch(f"SELECT * FROM {self._name};")
 
     async def find(self, **kwargs) -> Sequence[asyncpg.Record]:
         """
@@ -155,22 +157,24 @@ class Table:
         Returns a `list` of `asyncpg.Record` objects - these have a similar interface to `dict` and are read-only.
         """
 
-        if kwargs:
-            query = await self._build_select_query(**kwargs)
-            return await self._bean._conn.fetch(query, *kwargs.values())
-        else:
-            return await self.all()
+        async with self._bean._pool.acquire() as connection:
+            if kwargs:
+                query = await self._build_select_query(**kwargs)
+                return await connection.fetch(query, *kwargs.values())
+            else:
+                return await self.all()
 
     async def find_one(self, **kwargs) -> Optional[asyncpg.Record]:
         """
         Similar to `find`, but returns a single `asyncpg.Record`, or None.
         """
 
-        if kwargs:
-            query = await self._build_select_query(**kwargs)
-            return await self._bean._conn.fetchrow(query, *kwargs.values())
-        else:
-            return await self._bean._conn.fetchrow(f"SELECT * FROM {self._name} LIMIT 1;")
+        async with self._bean._pool.acquire() as connection:
+            if kwargs:
+                query = await self._build_select_query(**kwargs)
+                return await connection.fetchrow(query, *kwargs.values())
+            else:
+                return await connection.fetchrow(f"SELECT * FROM {self._name} LIMIT 1;")
 
     async def insert(self, **kwargs) -> None:
         """
@@ -182,7 +186,8 @@ class Table:
 
         await self._ensure_beans(kwargs)
         query = await self._build_insert_query(**kwargs)
-        await self._bean._conn.execute(query, *kwargs.values())
+        async with self._bean._pool.acquire() as connection:
+            await connection.execute(query, *kwargs.values())
 
     async def update(self, match: Sequence[AnyStr], **kwargs) -> None:
         """
@@ -194,7 +199,8 @@ class Table:
 
         await self._ensure_beans(kwargs)
         query, values = await self._build_update_query(match, **kwargs)
-        await self._bean._conn.execute(query, *values)
+        async with self._bean._pool.acquire() as connection:
+            await connection.execute(query, *values)
 
     async def upsert(self, match: Sequence[AnyStr], **kwargs) -> None:
         """
@@ -217,7 +223,9 @@ class Table:
         Give up on this table and get rid of it - this will remove schema and delete all records.
         """
 
-        await self._bean._conn.execute(f"DROP TABLE {self._name};")
+        async with self._bean._pool.acquire() as connection:
+            await connection.execute(f"DROP TABLE {self._name};")
+
         del self._bean._tables[self._name]
 
     async def delete(self, **kwargs) -> None:
@@ -226,11 +234,12 @@ class Table:
         If no keywords are given, all records are deleted.
         """
 
-        if kwargs:
-            query = await self._build_select_query(**kwargs).replace("SELECT *", "DELETE", 1)
-            await self._bean._conn.execute(query, *kwargs.values())
-        else:
-            await self._bean._conn.execute(f"DELETE FROM {self._name};")
+        async with self._bean._pool.acquire() as connection:
+            if kwargs:
+                query = await self._build_select_query(**kwargs).replace("SELECT *", "DELETE", 1)
+                await connection.execute(query, *kwargs.values())
+            else:
+                await connection.execute(f"DELETE FROM {self._name};")
 
 
 class Databean():
@@ -253,11 +262,11 @@ class Databean():
     @staticmethod
     async def _connect(*args, **kwargs):
         new = Databean()
-        new._conn = await asyncpg.connect(**kwargs)
+        new._pool = await asyncpg.create_pool(**kwargs)
         new._tables = {}  # tables are fetched lazily
 
         return new
 
     async def close(self, timeout: int = None):
-        await self._conn.close(timeout=timeout)
+        await self._pool.close(timeout=timeout)
         del self
