@@ -149,7 +149,10 @@ class Table:
         """
 
         async with self._bean._pool.acquire() as connection:
-            return await connection.fetch(f"SELECT * FROM {self._name};")
+            try:
+                return await connection.fetch(f"SELECT * FROM {self._name};")
+            except asyncpg.UndefinedTableError:
+                return []
 
     async def find(self, **kwargs) -> Sequence[asyncpg.Record]:
         """
@@ -158,11 +161,14 @@ class Table:
         """
 
         async with self._bean._pool.acquire() as connection:
-            if kwargs:
-                query = await self._build_select_query(**kwargs)
-                return await connection.fetch(query, *kwargs.values())
-            else:
-                return await self.all()
+            try:
+                if kwargs:
+                    query = await self._build_select_query(**kwargs)
+                    return await connection.fetch(query, *kwargs.values())
+                else:
+                    return await self.all()
+            except asyncpg.UndefinedTableError:
+                return []
 
     async def find_one(self, **kwargs) -> Optional[asyncpg.Record]:
         """
@@ -170,11 +176,14 @@ class Table:
         """
 
         async with self._bean._pool.acquire() as connection:
-            if kwargs:
-                query = await self._build_select_query(**kwargs)
-                return await connection.fetchrow(query, *kwargs.values())
-            else:
-                return await connection.fetchrow(f"SELECT * FROM {self._name} LIMIT 1;")
+            try:
+                if kwargs:
+                    query = await self._build_select_query(**kwargs)
+                    return await connection.fetchrow(query, *kwargs.values())
+                else:
+                    return await connection.fetchrow(f"SELECT * FROM {self._name} LIMIT 1;")
+            except asyncpg.UndefinedTableError:
+                return None
 
     async def insert(self, **kwargs) -> None:
         """
