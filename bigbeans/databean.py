@@ -270,3 +270,17 @@ class Databean():
     async def close(self, timeout: int = None):
         await self._pool.close(timeout=timeout)
         del self
+
+    async def execute_query(self, query_string, *args, **kwargs):
+        """Executes a plain SQl instruction."""
+
+        async with self._pool.acquire() as connection:
+            await connection.execute(query_string, *args, **kwargs)
+
+    async def fetch_query(self, query_string, *args, **kwargs):
+        """Executes a plain SQl query. This will return whatever results are found in their usual formats."""
+
+        async with self._pool.acquire() as connection:
+            res = await connection.fetch(query_string, *args, **kwargs)
+
+        return res
