@@ -312,15 +312,3 @@ class Databean():
             res = await connection.fetch(query_string, *args, **kwargs)
 
         return res
-
-
-async def shitty_test_function():
-    db = await Databean._connect(user="postgres", password="postgres", host="localhost", port=5432)
-    db.DEBUG = True
-    # await db["test_table"].drop()
-    await db["pokemon"].insert(pokemon_name="dudeidk", user_id=636797375184240640, count=1, special=0)
-    await db["pokemon"].insert(pokemon_name="dudeidk", user_id=636797375184240640, count=1, special=0)
-    await db["pokemon"].update(["user_id", "pokemon_name"], user_id=636797375184240640, pokemon_name="dudeidk", count=2, special=1)
-
-import asyncio
-asyncio.get_event_loop().run_until_complete(shitty_test_function())
