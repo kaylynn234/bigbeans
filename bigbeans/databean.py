@@ -140,7 +140,7 @@ class Table:
         matched_values = {k: v for k, v in kwargs.items() if k in match}
         query_values = ', '.join([f"{k} = ${i + 1}" for i, k in enumerate(kwargs.keys())])
         constraint_values = [
-            f"{k} = ${i + 1}" for i, k in enumerate(matched_values.keys(), start=len(matched_values.keys()) + 1)
+            f"{k} = ${i + 2}" for i, k in enumerate(matched_values.keys(), start=len(matched_values.keys()) + 1)
         ]
 
         query = f"UPDATE {self._name} SET {query_values} WHERE {' AND '.join(constraint_values)};"
