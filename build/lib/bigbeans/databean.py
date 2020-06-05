@@ -97,6 +97,9 @@ class Table:
                     );
                     """
 
+                if self._bean.DEBUG:
+                    print(query)
+
                 await connection.execute(query)
 
             else:  # table exists, add new columns
@@ -105,19 +108,22 @@ class Table:
                     table_details.append(f"ADD COLUMN IF NOT EXISTS {key} {VALID_TYPE_MAPPING[type(value)]}")
 
                 column_query_as_string = ',\n'.join(table_details)
-                await connection.execute(
-                    f"""
+                query = f"""
                     ALTER TABLE {self._name}
                     {column_query_as_string};
                     """
-                )
+
+                if self._bean.DEBUG:
+                    print(query)
+
+                await connection.execute(query)
 
     async def _build_insert_query(self, **kwargs) -> str:
         # the insert function should make sure we're not inserting nothing, so no need to do so here
-        query_names = f"({', '.join(kwargs.keys())})"
-        query_values = f"({', '.join([f'${i + 1}' for i in range(len(kwargs.values()))])})"
+        query_names = ', '.join(kwargs.keys())
+        query_values = ', '.join([f'${i + 1}' for i in range(len(kwargs.values()))])
 
-        return f"INSERT INTO {self._name}{query_names} VALUES{query_values}"
+        return f"INSERT INTO {self._name} ({query_names}) VALUES ({query_values})"
 
     async def _build_select_query(self, **kwargs) -> str:
         # the find function(s) will make sure we're not trying to find nothing, so no need to do so here
@@ -137,7 +143,7 @@ class Table:
             f"{k} = ${i + 1}" for i, k in enumerate(matched_values.keys(), start=len(matched_values.keys()) + 1)
         ]
 
-        query = f"UPDATE {self._name} SET {query_values} WHERE {', '.join(constraint_values)};"
+        query = f"UPDATE {self._name} SET {query_values} WHERE {' AND '.join(constraint_values)};"
         for_statement = list(kwargs.values()) + list(matched_values.values())
 
         return query, for_statement
@@ -164,6 +170,9 @@ class Table:
             try:
                 if kwargs:
                     query = await self._build_select_query(**kwargs)
+                    if self._bean.DEBUG:
+                        print(query, kwargs.values())
+
                     return await connection.fetch(query, *kwargs.values())
                 else:
                     return await self.all()
@@ -179,6 +188,9 @@ class Table:
             try:
                 if kwargs:
                     query = await self._build_select_query(**kwargs)
+                    if self._bean.DEBUG:
+                        print(query, kwargs.values())
+
                     return await connection.fetchrow(query, *kwargs.values())
                 else:
                     return await connection.fetchrow(f"SELECT * FROM {self._name} LIMIT 1;")
@@ -195,6 +207,9 @@ class Table:
 
         await self._ensure_beans(kwargs)
         query = await self._build_insert_query(**kwargs)
+        if self._bean.DEBUG:
+            print(query, kwargs.values())
+
         async with self._bean._pool.acquire() as connection:
             await connection.execute(query, *kwargs.values())
 
@@ -204,10 +219,13 @@ class Table:
         """
 
         if not kwargs:
-            raise BeansError("Bad upsert call - you attempted to update nothing. Don't do this.")
+            raise BeansError("Bad update call - you attempted to update nothing. Don't do this.")
 
         await self._ensure_beans(kwargs)
         query, values = await self._build_update_query(match, **kwargs)
+        if self._bean.DEBUG:
+            print(query, values)
+
         async with self._bean._pool.acquire() as connection:
             await connection.execute(query, *values)
 
@@ -271,6 +289,7 @@ class Databean():
     @staticmethod
     async def _connect(*args, **kwargs):
         new = Databean()
+        new.DEBUG = False
         new._pool = await asyncpg.create_pool(**kwargs)
         new._tables = {}  # tables are fetched lazily
 

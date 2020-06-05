@@ -219,7 +219,7 @@ class Table:
         """
 
         if not kwargs:
-            raise BeansError("Bad upsert call - you attempted to update nothing. Don't do this.")
+            raise BeansError("Bad update call - you attempted to update nothing. Don't do this.")
 
         await self._ensure_beans(kwargs)
         query, values = await self._build_update_query(match, **kwargs)
