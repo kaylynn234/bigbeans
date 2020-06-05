@@ -140,7 +140,7 @@ class Table:
         matched_values = {k: v for k, v in kwargs.items() if k in match}
         query_values = ', '.join([f"{k} = ${i + 1}" for i, k in enumerate(kwargs.keys())])
         constraint_values = [
-            f"{k} = ${i + 1}" for i, k in enumerate(matched_values.keys(), start=len(matched_values.keys()) + 1)
+            f"{k} = ${i}" for i, k in enumerate(matched_values.keys(), start=len(kwargs.keys()) + 1)
         ]
 
         query = f"UPDATE {self._name} SET {query_values} WHERE {' AND '.join(constraint_values)};"
@@ -312,3 +312,15 @@ class Databean():
             res = await connection.fetch(query_string, *args, **kwargs)
 
         return res
+
+
+async def shitty_test_function():
+    db = await Databean._connect(user="postgres", password="postgres", host="localhost", port=5432)
+    db.DEBUG = True
+    # await db["test_table"].drop()
+    await db["pokemon"].insert(pokemon_name="dudeidk", user_id=636797375184240640, count=1, special=0)
+    await db["pokemon"].insert(pokemon_name="dudeidk", user_id=636797375184240640, count=1, special=0)
+    await db["pokemon"].update(["user_id", "pokemon_name"], user_id=636797375184240640, pokemon_name="dudeidk", count=2, special=1)
+
+import asyncio
+asyncio.get_event_loop().run_until_complete(shitty_test_function())
