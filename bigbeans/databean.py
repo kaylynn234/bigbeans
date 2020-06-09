@@ -263,7 +263,7 @@ class Table:
 
         async with self._bean._pool.acquire() as connection:
             if kwargs:
-                query = await self._build_select_query(**kwargs).replace("SELECT *", "DELETE", 1)
+                query = (await self._build_select_query(**kwargs)).replace("SELECT *", "DELETE", 1)
                 await connection.execute(query, *kwargs.values())
             else:
                 await connection.execute(f"DELETE FROM {self._name};")
